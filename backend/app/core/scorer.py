@@ -1,6 +1,8 @@
 from app.models.memory import Memory, StalenessScore, StalenessLevel
 from app.core.decay import compute_time_decay, get_decay_explanation
 from app.core.access_anomaly import compute_access_anomaly, get_anomaly_explanation
+from app.core.retrieval import find_candidate_memories
+from app.core.contradiction import detect_contradiction, MemoryRelationship
 
 
 # Weights for the three signals — must sum to 1.0
@@ -12,6 +14,75 @@ WEIGHTS = {
     "contradiction":  0.30,
     "access_anomaly": 0.20,
 }
+
+
+def resolve_contradiction_score(
+    memory: Memory,
+    existing_memories: list[Memory],
+) -> tuple[float, str]:
+    """
+    Phase 2 orchestration: retrieval (Step 3) + Gemini contradiction
+    detection (Steps 5-6), combined into a single contradiction
+    score usable by score_memory().
+
+    Only memories created AFTER `memory` are considered as potential
+    contradictors/superseders -- something can't be contradicted by
+    a memory that already existed before it.
+
+    Both CONTRADICTS and SUPERSEDES relationships count toward the
+    score: a superseded memory is just as "no longer current" as a
+    contradicted one, even though the two are logged separately in
+    `reasoning` for qualitative analysis later (see Phase 2 schema
+    design). If multiple newer candidates trigger a signal, the
+    strongest one wins (max, not average) -- one clear contradiction
+    shouldn't be diluted by weaker/unrelated comparisons.
+
+    Returns (score, reasoning) so the caller can log/display why a
+    particular score was assigned.
+    """
+    candidates = find_candidate_memories(memory, existing_memories)
+    newer_candidates = [c for c in candidates if c.memory.created_at > memory.created_at]
+
+    if not newer_candidates:
+        return 0.0, "No newer related memories found during retrieval."
+
+    best_score = 0.0
+    best_reasoning = "No contradiction or supersession detected among candidates."
+
+    for candidate in newer_candidates:
+        result = detect_contradiction(old_memory=memory, new_memory=candidate.memory)
+
+        if result.relationship in (MemoryRelationship.CONTRADICTS, MemoryRelationship.SUPERSEDES):
+            if result.score > best_score:
+                best_score = result.score
+                best_reasoning = (
+                    f"[{result.relationship.value}] vs memory {candidate.memory.id!r} "
+                    f"({candidate.memory.content!r}): {result.reasoning}"
+                )
+
+    return best_score, best_reasoning
+
+
+def score_memory_full(
+    memory: Memory,
+    existing_memories: list[Memory],
+) -> StalenessScore:
+    """
+    Full Phase 2 pipeline: computes the real contradiction score via
+    retrieval + Gemini, then delegates to score_memory() for the
+    actual weighted combination. This is now the "real" entry point
+    for scoring a memory once Phase 2 is wired in; score_memory()
+    itself is kept unchanged so its existing unit tests remain valid
+    and so contradiction_score can still be injected manually/mocked
+    in tests without touching the network.
+    """
+    contradiction_score, contradiction_reasoning = resolve_contradiction_score(
+        memory, existing_memories
+    )
+
+    score = score_memory(memory, contradiction_score=contradiction_score)
+    score.explanation += f" | Contradiction detail: {contradiction_reasoning}"
+    return score
 
 
 def compute_staleness_level(score: float) -> StalenessLevel:
