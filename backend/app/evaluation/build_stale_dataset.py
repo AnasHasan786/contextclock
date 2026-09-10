@@ -32,6 +32,20 @@ Design decisions (see project notes for full justification):
   and spot-checked or excluded during evaluation, rather than treated
   as silently equally reliable.
 
+  KNOWN LIMITATION (deliberate, documented, not a bug): MemoryCategory
+  has no dedicated FINANCE category. 4/400 records (1%) concern
+  personal financial status (debt payoff, credit score changes,
+  student loans, investment/portfolio events) and get force-classified
+  into EMPLOYMENT as the closest available bucket, with correspondingly
+  low confidence (0.1-0.3) -- the classifier itself flags the mismatch
+  in its reasoning rather than confidently mislabeling. Decision:
+  documented as a taxonomy limitation for the paper rather than adding
+  a new category, since it affects only 1% of the evaluation set and
+  the low-confidence signal already makes these records identifiable
+  for spot-checking or exclusion. See uids: 7675e9c3-118f-4068-8d4f-
+  1115f72e13bb, 4c73b469-75b6-4bc2-94b5-62dd4167cd8d, d806d94c-7515-
+  4019-ac26-2da5d329291e, 012f090e-6e02-4751-955d-574745069df3.
+
   NOTE: this makes one real Gemini API call per row (400 total) each
   time the script runs, using EVALUATION_MODEL (gemini-3.5-flash-lite)
   rather than the production default (gemini-3.6-flash). This choice
