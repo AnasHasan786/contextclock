@@ -60,3 +60,59 @@ def test_explanation_is_readable():
     assert isinstance(explanation, str)
     assert len(explanation) > 10
     print(f"✓ Explanation: {explanation}")
+
+
+def test_reference_time_override_ignores_real_now():
+    """
+    A memory created 2 years before a FIXED reference_time should score
+    ~0.75 for LOCATION (365-day half-life), regardless of what the real
+    current date is. This is the behavior evaluation code (e.g. STALE
+    dataset scoring) depends on.
+    """
+    reference_time = datetime(2023, 6, 15, 10, 30, 0, tzinfo=timezone.utc)
+    created_at = reference_time - timedelta(days=365 * 2)  # 2x half-life for LOCATION
+
+    score = compute_time_decay(
+        MemoryCategory.LOCATION, created_at, reference_time=reference_time
+    )
+    assert 0.70 < score < 0.80, f"Expected ~0.75 at 2x half-life, got {score}"
+    print(f"✓ Fixed reference_time (2023-06-15) score at 2x half-life: {score}")
+
+
+def test_reference_time_none_matches_default_behavior():
+    """
+    Explicitly passing reference_time=None must produce the exact same
+    score as omitting it, confirming backward compatibility with all
+    pre-existing callers.
+    """
+    created_at = datetime.now(timezone.utc) - timedelta(days=180)
+
+    score_default = compute_time_decay(MemoryCategory.EMPLOYMENT, created_at)
+    score_explicit_none = compute_time_decay(
+        MemoryCategory.EMPLOYMENT, created_at, reference_time=None
+    )
+    assert score_default == score_explicit_none, (
+        f"reference_time=None should match omitting the argument: "
+        f"{score_default} vs {score_explicit_none}"
+    )
+    print(f"✓ reference_time=None matches default: {score_default}")
+
+
+def test_explanation_matches_score_with_reference_time():
+    """
+    get_decay_explanation must accept the same reference_time used to
+    compute the score, so the displayed age and the numeric score
+    describe the same moment in time rather than silently disagreeing.
+    """
+    reference_time = datetime(2023, 6, 15, 10, 30, 0, tzinfo=timezone.utc)
+    created_at = reference_time - timedelta(days=730)  # 2 years before reference
+
+    score = compute_time_decay(
+        MemoryCategory.LOCATION, created_at, reference_time=reference_time
+    )
+    explanation = get_decay_explanation(
+        MemoryCategory.LOCATION, created_at, score, reference_time=reference_time
+    )
+    assert "years" in explanation, f"Expected age in years, got: {explanation}"
+    assert isinstance(explanation, str) and len(explanation) > 10
+    print(f"✓ Explanation with fixed reference_time: {explanation}")

@@ -16,54 +16,53 @@ HALF_LIFE_DAYS: dict[MemoryCategory, float] = {
 }
 
 
-def compute_time_decay(category: MemoryCategory, created_at: datetime) -> float:
+def compute_time_decay(
+    category: MemoryCategory,
+    created_at: datetime,
+    reference_time: datetime | None = None,
+) -> float:
     """
-    Computes a time decay score between 0.0 and 1.0.
-
-    0.0 = just created, perfectly fresh
-    1.0 = ancient, fully expired
-
-    Uses exponential decay formula:
-        score = 1 - e^(-λt)
-    where:
-        t = age of memory in days
-        λ = decay constant = ln(2) / half_life
-
-    This means:
-        - At t = half_life  → score ≈ 0.50
-        - At t = 2*half_life → score ≈ 0.75
-        - At t = 3*half_life → score ≈ 0.87
-        - Score never actually reaches 1.0 (asymptotic)
+    ...
+    reference_time: the point in time decay is measured "as of."
+    Defaults to the real current time (production use). Evaluation
+    code may pass a fixed historical timestamp to simulate staleness
+    as of a specific past moment (e.g. STALE dataset evaluation).
     """
     half_life = HALF_LIFE_DAYS[category]
     decay_constant = math.log(2) / half_life
 
-    # Make both datetimes timezone-aware for safe subtraction
-    now = datetime.now(timezone.utc)
+    now = reference_time if reference_time is not None else datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
     if created_at.tzinfo is None:
         created_at = created_at.replace(tzinfo=timezone.utc)
 
     age_in_days = (now - created_at).total_seconds() / 86400
-
-    # Clamp: age can't be negative (future-dated memories = 0.0)
     age_in_days = max(0.0, age_in_days)
 
     score = 1 - math.exp(-decay_constant * age_in_days)
-
-    # Clamp to [0.0, 1.0] for safety
     return round(min(max(score, 0.0), 1.0), 4)
 
 
 def get_decay_explanation(
-    category: MemoryCategory, created_at: datetime, score: float
+    category: MemoryCategory,
+    created_at: datetime,
+    score: float,
+    reference_time: datetime | None = None,
 ) -> str:
     """
     Returns a human-readable explanation of the decay score.
     Used in the dashboard and API responses.
+
+    reference_time: must match whatever was passed to compute_time_decay()
+    to produce `score`, so the displayed age and the score stay consistent.
+    Defaults to real current time (production use).
     """
     half_life = HALF_LIFE_DAYS[category]
 
-    now = datetime.now(timezone.utc)
+    now = reference_time if reference_time is not None else datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
     if created_at.tzinfo is None:
         created_at = created_at.replace(tzinfo=timezone.utc)
 
