@@ -41,6 +41,51 @@ def test_successful_response_returns_parsed_result(mock_client):
 
 
 @patch("app.core.contradiction._client")
+def test_default_model_is_used_when_not_overridden(mock_client):
+    expected = ContradictionResult(
+        relationship=MemoryRelationship.CONSISTENT,
+        score=0.1,
+        reasoning="Mocked reasoning.",
+    )
+    mock_response = MagicMock()
+    mock_response.parsed = expected
+    mock_client.models.generate_content.return_value = mock_response
+
+    old = make_memory("1", "User works at Google.")
+    new = make_memory("2", "User still works at Google.")
+
+    detect_contradiction(old, new)
+
+    _, kwargs = mock_client.models.generate_content.call_args
+    assert kwargs["model"] == "gemini-3.6-flash"
+
+
+@patch("app.core.contradiction._client")
+def test_model_override_is_passed_through(mock_client):
+    """
+    Evaluation code (the STALE evaluation runner) passes a different
+    model than the production default, per the same disclosed
+    deviation already applied to classify_memory_category().
+    """
+    expected = ContradictionResult(
+        relationship=MemoryRelationship.CONSISTENT,
+        score=0.1,
+        reasoning="Mocked reasoning.",
+    )
+    mock_response = MagicMock()
+    mock_response.parsed = expected
+    mock_client.models.generate_content.return_value = mock_response
+
+    old = make_memory("1", "User works at Google.")
+    new = make_memory("2", "User still works at Google.")
+
+    detect_contradiction(old, new, model="gemini-3.5-flash-lite")
+
+    _, kwargs = mock_client.models.generate_content.call_args
+    assert kwargs["model"] == "gemini-3.5-flash-lite"
+
+
+@patch("app.core.contradiction._client")
 def test_api_exception_triggers_safe_fallback(mock_client):
     mock_client.models.generate_content.side_effect = Exception("simulated network failure")
 

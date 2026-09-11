@@ -105,10 +105,24 @@ def _format_memory(label: str, memory: Memory) -> str:
     )
 
 
-def detect_contradiction(old_memory: Memory, new_memory: Memory) -> ContradictionResult:
+def detect_contradiction(
+    old_memory: Memory,
+    new_memory: Memory,
+    model: str = MODEL_NAME,
+) -> ContradictionResult:
     """
     Calls Gemini once for a single (old_memory, new_memory) pair and
     returns a validated ContradictionResult.
+
+    model: overrides which Gemini model is called. Defaults to
+    MODEL_NAME (gemini-3.6-flash), matching production behavior.
+    Evaluation code may pass a different model -- e.g.
+    gemini-3.5-flash-lite -- to work around gemini-3.6-flash's
+    restrictive free-tier daily quota (20 requests/day, confirmed
+    from a live 429 response) when running the full STALE
+    evaluation over 400 pairs. This mirrors the same disclosed
+    evaluation-only deviation already applied to
+    classify_memory_category() in category_classifier.py.
 
     This function does NOT raise on failure. Any error -- network
     failure, rate limiting, malformed/unparseable response, content
@@ -131,7 +145,7 @@ def detect_contradiction(old_memory: Memory, new_memory: Memory) -> Contradictio
 
     try:
         response = _client.models.generate_content(
-            model=MODEL_NAME,
+            model=model,
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
