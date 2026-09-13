@@ -33,7 +33,7 @@ arbitrary strawman:
 
 from app.models.memory import Memory
 from app.core.retrieval import _embedding_model
-from app.core.contradiction import detect_contradiction, MemoryRelationship
+from app.core.contradiction import detect_contradiction, MemoryRelationship, MODEL_NAME
 from sentence_transformers import util
 
 
@@ -74,12 +74,27 @@ def similarity_only_score(memory: Memory, existing_memories: list[Memory]) -> tu
     return best_score, f"Highest raw similarity ({best_score:.3f}) vs memory {best_memory.id!r} ({best_memory.content!r})."
 
 
-def always_llm_score(memory: Memory, existing_memories: list[Memory]) -> tuple[float, str, int]:
+def always_llm_score(
+    memory: Memory,
+    existing_memories: list[Memory],
+    model: str = MODEL_NAME,
+) -> tuple[float, str, int]:
     """
     Returns (score, reasoning, num_api_calls_made). The call count is
     reported so Step 11-13's cost/latency comparison can quantify
     exactly how many more Gemini calls this baseline makes versus
     ContextClock's filtered retrieval.
+
+    model: overrides which Gemini model detect_contradiction() calls
+    for every candidate checked here. Defaults to production
+    MODEL_NAME, matching production behavior. The STALE evaluation
+    runner passes an evaluation-tier model (e.g.
+    gemini-3.5-flash-lite) for the same reason as
+    detect_contradiction() and classify_memory_category(): this
+    baseline makes one Gemini call per candidate with no retrieval
+    filtering, so over 400 STALE rows it would exceed
+    gemini-3.6-flash's 20/day free-tier cap almost immediately
+    without this override.
     """
     candidates = _newer_same_scope(memory, existing_memories)
     if not candidates:
@@ -90,7 +105,7 @@ def always_llm_score(memory: Memory, existing_memories: list[Memory]) -> tuple[f
     calls_made = 0
 
     for candidate in candidates:
-        result = detect_contradiction(old_memory=memory, new_memory=candidate)
+        result = detect_contradiction(old_memory=memory, new_memory=candidate, model=model)
         calls_made += 1
         if result.relationship in (MemoryRelationship.CONTRADICTS, MemoryRelationship.SUPERSEDES):
             if result.score > best_score:

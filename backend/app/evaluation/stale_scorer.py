@@ -60,6 +60,39 @@ STALE_EVAL_WEIGHTS = {
 }
 
 
+def build_stale_memory_pair(
+    m_old: str,
+    m_new: str,
+    category: MemoryCategory,
+    old_timestamp: datetime,
+    new_timestamp: datetime,
+) -> tuple[Memory, Memory]:
+    """
+    Builds the (old_memory, new_memory) Memory pair for a single STALE
+    evaluation row. Shared by score_stale_pair() and by the evaluation
+    runner (when it also scores the same pair against baselines.py),
+    so both paths construct the pair identically -- same ids, same
+    user_id/agent_id convention -- rather than each reimplementing it.
+    """
+    old_memory = Memory(
+        id="stale_old",
+        content=m_old,
+        category=category,
+        user_id="stale_eval",
+        agent_id="stale_eval",
+        created_at=old_timestamp,
+    )
+    new_memory = Memory(
+        id="stale_new",
+        content=m_new,
+        category=category,
+        user_id="stale_eval",
+        agent_id="stale_eval",
+        created_at=new_timestamp,
+    )
+    return old_memory, new_memory
+
+
 def score_stale_pair(
     m_old: str,
     m_new: str,
@@ -85,21 +118,8 @@ def score_stale_pair(
 
     access_anomaly is deliberately excluded -- see module docstring.
     """
-    old_memory = Memory(
-        id="stale_old",
-        content=m_old,
-        category=category,
-        user_id="stale_eval",
-        agent_id="stale_eval",
-        created_at=old_timestamp,
-    )
-    new_memory = Memory(
-        id="stale_new",
-        content=m_new,
-        category=category,
-        user_id="stale_eval",
-        agent_id="stale_eval",
-        created_at=new_timestamp,
+    old_memory, new_memory = build_stale_memory_pair(
+        m_old, m_new, category, old_timestamp, new_timestamp
     )
 
     time_decay = compute_time_decay(category, old_timestamp, reference_time=new_timestamp)

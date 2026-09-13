@@ -150,6 +150,7 @@ def detect_contradiction(
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=ContradictionResult,
+                temperature=0.0,
             ),
         )
     except Exception as e:

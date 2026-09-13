@@ -4,6 +4,7 @@ __pycache__/
 *.pyc
 *.pyo
 .env
+extra.py
 
 # Node (for later)
 node_modules/
@@ -14,3 +15,19 @@ node_modules/
 
 # AWS (for later)
 *.pem
+
+# stale data
+data/
+
+# Diagnostic/investigation scripts (not production code)
+diagnose_*.py
+analyze_*.py
+inspect_schema.py
+measure_instability.py
+category_breakdown.py
+inrun_agreement.py
+
+# Diagnostic output artifacts
+smoke_*.json
+delay_isolation_results.json
+stale_eval_results.json
