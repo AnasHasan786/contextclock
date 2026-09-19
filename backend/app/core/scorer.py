@@ -41,7 +41,7 @@ def resolve_contradiction_score(
     particular score was assigned.
     """
     candidates = find_candidate_memories(memory, existing_memories)
-    newer_candidates = [c for c in candidates if c.memory.created_at > memory.created_at]
+    newer_candidates = [c for c in candidates if c.memory.created_at >= memory.created_at]
 
     if not newer_candidates:
         return 0.0, "No newer related memories found during retrieval."
