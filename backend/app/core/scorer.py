@@ -1,8 +1,13 @@
+from collections.abc import Callable
 from app.models.memory import Memory, StalenessScore, StalenessLevel
 from app.core.decay import compute_time_decay, get_decay_explanation
 from app.core.access_anomaly import compute_access_anomaly, get_anomaly_explanation
 from app.core.retrieval import find_candidate_memories
-from app.core.contradiction import detect_contradiction, MemoryRelationship
+from app.core.contradiction import (
+    detect_contradiction,
+    ContradictionResult,
+    MemoryRelationship
+)
 
 
 # Weights for the three signals — must sum to 1.0
@@ -19,6 +24,7 @@ WEIGHTS = {
 def resolve_contradiction_score(
     memory: Memory,
     existing_memories: list[Memory],
+    detector: Callable[..., ContradictionResult] | None = None,
 ) -> tuple[float, str]:
     """
     Phase 2 orchestration: retrieval (Step 3) + Gemini contradiction
@@ -37,9 +43,18 @@ def resolve_contradiction_score(
     strongest one wins (max, not average) -- one clear contradiction
     shouldn't be diluted by weaker/unrelated comparisons.
 
+    detector: optional callable with the same call shape as
+    detect_contradiction(old_memory=, new_memory=). Defaults to
+    detect_contradiction. The API layer passes a caching detector here;
+    evaluation and unit tests leave it unset.
+
     Returns (score, reasoning) so the caller can log/display why a
     particular score was assigned.
     """
+
+    if detector is None:
+        detector = detect_contradiction
+
     candidates = find_candidate_memories(memory, existing_memories)
     newer_candidates = [c for c in candidates if c.memory.created_at >= memory.created_at]
 
@@ -50,7 +65,7 @@ def resolve_contradiction_score(
     best_reasoning = "No contradiction or supersession detected among candidates."
 
     for candidate in newer_candidates:
-        result = detect_contradiction(old_memory=memory, new_memory=candidate.memory)
+        result = detector(old_memory=memory, new_memory=candidate.memory)
 
         if result.relationship in (MemoryRelationship.CONTRADICTS, MemoryRelationship.SUPERSEDES):
             if result.score > best_score:
@@ -66,6 +81,7 @@ def resolve_contradiction_score(
 def score_memory_full(
     memory: Memory,
     existing_memories: list[Memory],
+    detector: Callable[..., ContradictionResult] | None = None,
 ) -> StalenessScore:
     """
     Full Phase 2 pipeline: computes the real contradiction score via
@@ -77,7 +93,7 @@ def score_memory_full(
     in tests without touching the network.
     """
     contradiction_score, contradiction_reasoning = resolve_contradiction_score(
-        memory, existing_memories
+        memory, existing_memories, detector=detector
     )
 
     score = score_memory(memory, contradiction_score=contradiction_score)
