@@ -6,12 +6,17 @@ from pydantic import BaseModel
 from app.models.memory import Memory, MemoryCategory, MemoryWithScore
 from app.services.memory_store import MemoryStore
 from app.core.scorer import score_memory_full
+from app.services.contradiction_cache import ContradictionCache
 
 router = APIRouter(prefix="/memories", tags=["memories"])
 
 # Single in-memory store shared by every request in this process.
 # Swap for a database-backed store later without changing the routes.
 _store = MemoryStore()
+# Caches Gemini contradiction verdicts per memory pair so repeated scoring
+# (audit jobs, dashboard refreshes) doesn't re-spend the daily quota.
+# Time decay and access anomaly are still recomputed on every request.
+_contradiction_cache = ContradictionCache()
 
 
 class MemoryCreate(BaseModel):
@@ -46,7 +51,7 @@ def get_memory_score(memory_id: str) -> MemoryWithScore:
         raise HTTPException(status_code=404, detail="Memory not found.")
 
     existing = _store.list_for_scope(memory.user_id, memory.agent_id)
-    score = score_memory_full(memory, existing_memories=existing)
+    score = score_memory_full(memory, existing_memories=existing, detector=_contradiction_cache)
     return MemoryWithScore(memory=memory, score=score)
 
 

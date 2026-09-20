@@ -85,7 +85,7 @@ def test_record_memory_access_for_unknown_id_raises_404():
     print("✓ record_memory_access() on unknown id raises 404")
 
 
-@patch("app.core.scorer.detect_contradiction")
+@patch("app.services.contradiction_cache.detect_contradiction")
 def test_get_score_detects_contradiction_end_to_end(mock_detect):
     """
     Mocks only the Gemini network call (as test_scorer_phase2.py does)
