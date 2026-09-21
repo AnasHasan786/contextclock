@@ -6,17 +6,17 @@ from app.core.retrieval import find_candidate_memories
 from app.core.contradiction import (
     detect_contradiction,
     ContradictionResult,
-    MemoryRelationship
+    MemoryRelationship,
 )
-
+from app.core.fallback import CHECK_INCOMPLETE_PREFIX, is_fallback
 
 # Weights for the three signals — must sum to 1.0
 # Time decay is the strongest signal since it's always available.
 # Contradiction is powerful but requires an API call (Phase 2).
 # Access anomaly is a soft supporting signal.
 WEIGHTS = {
-    "time_decay":     0.50,
-    "contradiction":  0.30,
+    "time_decay": 0.50,
+    "contradiction": 0.30,
     "access_anomaly": 0.20,
 }
 
@@ -56,24 +56,44 @@ def resolve_contradiction_score(
         detector = detect_contradiction
 
     candidates = find_candidate_memories(memory, existing_memories)
-    newer_candidates = [c for c in candidates if c.memory.created_at >= memory.created_at]
+    newer_candidates = [
+        c for c in candidates if c.memory.created_at >= memory.created_at
+    ]
 
     if not newer_candidates:
         return 0.0, "No newer related memories found during retrieval."
 
     best_score = 0.0
     best_reasoning = "No contradiction or supersession detected among candidates."
+    failed = 0
+    first_error = ""
 
     for candidate in newer_candidates:
         result = detector(old_memory=memory, new_memory=candidate.memory)
 
-        if result.relationship in (MemoryRelationship.CONTRADICTS, MemoryRelationship.SUPERSEDES):
+        if is_fallback(result):
+            failed += 1
+            first_error = first_error or result.reasoning
+            continue
+
+        if result.relationship in (
+            MemoryRelationship.CONTRADICTS,
+            MemoryRelationship.SUPERSEDES,
+        ):
             if result.score > best_score:
                 best_score = result.score
                 best_reasoning = (
                     f"[{result.relationship.value}] vs memory {candidate.memory.id!r} "
                     f"({candidate.memory.content!r}): {result.reasoning}"
                 )
+
+    # Report failures only when nothing was found. If a real contradiction was
+    # found, that score stands (a failed sibling could only have raised it).
+    if failed and best_score == 0.0:
+        best_reasoning = (
+            f"{CHECK_INCOMPLETE_PREFIX}: {failed} of {len(newer_candidates)} "
+            f"comparisons failed. {first_error}"
+        )
 
     return best_score, best_reasoning
 
@@ -152,10 +172,10 @@ def score_memory(
 
     # --- Combine with weighted average ---
     final_score = round(
-        WEIGHTS["time_decay"]     * time_decay +
-        WEIGHTS["contradiction"]  * contradiction +
-        WEIGHTS["access_anomaly"] * access_anomaly,
-        4
+        WEIGHTS["time_decay"] * time_decay
+        + WEIGHTS["contradiction"] * contradiction
+        + WEIGHTS["access_anomaly"] * access_anomaly,
+        4,
     )
 
     # Clamp just in case of floating point edge cases
@@ -173,7 +193,9 @@ def score_memory(
     )
 
     if contradiction > 0.0:
-        contradiction_explanation = f"Contradiction signal: {contradiction:.2f} (detected by AI)."
+        contradiction_explanation = (
+            f"Contradiction signal: {contradiction:.2f} (detected by AI)."
+        )
     else:
         contradiction_explanation = "Contradiction signal: 0.00 (not yet checked)."
 

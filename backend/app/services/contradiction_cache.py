@@ -16,14 +16,8 @@ failure (or a hit on the daily quota) would stick until restart.
 """
 
 from app.core.contradiction import ContradictionResult, detect_contradiction
+from app.core.fallback import is_fallback
 from app.models.memory import Memory
-
-# Must match the fallback messages in contradiction.detect_contradiction().
-_FALLBACK_PREFIXES = ("API call failed", "Response did not parse to schema")
-
-
-def _is_fallback(result: ContradictionResult) -> bool:
-    return result.reasoning.startswith(_FALLBACK_PREFIXES)
 
 
 class ContradictionCache:
@@ -40,7 +34,7 @@ class ContradictionCache:
             return cached
 
         result = detect_contradiction(old_memory=old_memory, new_memory=new_memory)
-        if not _is_fallback(result):
+        if not is_fallback(result):
             self._verdicts[key] = result
         return result
 
