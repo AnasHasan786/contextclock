@@ -47,6 +47,18 @@ export interface MemoryWithScore {
 }
 
 /**
+ * When contradiction lookups fail (for example Gemini returns a 503) and
+ * nothing else was found, the backend starts its contradiction reasoning with
+ * this text (CHECK_INCOMPLETE_PREFIX in backend/app/core/fallback.py). The
+ * reasoning is appended to StalenessScore.explanation after this label.
+ */
+const CHECK_INCOMPLETE_MARKER = "Contradiction detail: Contradiction check incomplete";
+
+export function isCheckIncomplete(score: StalenessScore): boolean {
+    return score.explanation.includes(CHECK_INCOMPLETE_MARKER);
+}
+
+/**
  * The backend stores naive UTC datetimes, so they serialize without a
  * timezone suffix. new Date() would read such a string as LOCAL time and
  * shift every timestamp by your UTC offset. This treats them as UTC.
