@@ -1,97 +1,114 @@
 import {
-  isCheckIncomplete,
-  parseServerDate,
-  type Memory,
-  type MemoryWithScore,
+    isCheckIncomplete,
+    parseServerDate,
+    type Memory,
+    type MemoryWithScore,
 } from "@/lib/api";
 import {
-  LEVEL_STYLES,
-  capitalize,
-  describeUse,
-  formatAge,
-  formatDateTime,
+    LEVEL_STYLES,
+    capitalize,
+    describeUse,
+    formatAge,
+    formatDateTime,
 } from "@/lib/format";
 import { ghostButton, primaryButton } from "@/lib/ui";
 import { ScorePanel } from "./ScorePanel";
 
 interface Props {
-  memory: Memory;
-  result?: MemoryWithScore;
-  now: number;
-  pending?: "check" | "use";
-  onCheck: (id: string) => void;
-  onMarkUsed: (id: string) => void;
+    memory: Memory;
+    result?: MemoryWithScore;
+    possiblyOutdated?: boolean;
+    now: number;
+    pending?: "check" | "use";
+    onCheck: (id: string) => void;
+    onMarkUsed: (id: string) => void;
 }
 
 /**
- * One entry on the timeline. The node on the spine is hollow until the
- * memory has been checked, then it takes the color of its staleness level
- * (or stays a hollow amber ring if the check could not finish).
+ * One entry on the timeline. On wide screens the time sits in a gutter to
+ * the left of the spine. The node on the spine is hollow until the memory
+ * has been checked, then it takes the color of its staleness level (or stays
+ * a hollow amber ring if the check could not finish).
  */
-export function MemoryEntry({ memory, result, now, pending, onCheck, onMarkUsed }: Props) {
-  const created = parseServerDate(memory.created_at);
-  const level = result ? LEVEL_STYLES[result.score.staleness_level] : null;
-  const incomplete = result !== undefined && isCheckIncomplete(result.score);
-  const nodeClass =
-    level === null
-      ? "border-muted bg-paper"
-      : incomplete
-        ? "border-aging bg-paper"
-        : `${level.border} ${level.solid}`;
-
-  return (
-    <li className="relative pb-10 pl-8 last:pb-0">
-      <span
-        aria-hidden="true"
-        className={`absolute -left-[7.5px] top-1 h-3.5 w-3.5 rounded-full border-2 ${nodeClass}`}
-      />
-
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span className="rounded-full border border-rule px-2.5 py-0.5 text-xs text-muted">
-          {capitalize(memory.category)}
-        </span>
-        <time
-          dateTime={created.toISOString()}
-          title={formatDateTime(created)}
-          className="text-xs text-muted"
-        >
-          Added {formatAge(created, now)}
-        </time>
-      </div>
-
-      <p className="mt-2 max-w-[62ch] font-serif text-xl leading-snug">{memory.content}</p>
-
-      <div className="mt-3 flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          className={primaryButton}
-          onClick={() => onCheck(memory.id)}
-          disabled={pending !== undefined}
-          aria-busy={pending === "check"}
-        >
-          {pending === "check"
-            ? "Checking…"
+export function MemoryEntry({ memory, result, possiblyOutdated, now, pending, onCheck, onMarkUsed }: Props) {
+    const created = parseServerDate(memory.created_at);
+    const level = result ? LEVEL_STYLES[result.score.staleness_level] : null;
+    const incomplete = result !== undefined && isCheckIncomplete(result.score);
+    const nodeClass =
+        level === null
+            ? "border-muted bg-paper"
             : incomplete
-              ? "Try again"
-              : result
-                ? "Check again"
-                : "Check staleness"}
-        </button>
-        <button
-          type="button"
-          className={ghostButton}
-          onClick={() => onMarkUsed(memory.id)}
-          disabled={pending !== undefined}
-          aria-busy={pending === "use"}
-        >
-          {pending === "use" ? "Saving…" : "Mark as used"}
-        </button>
-        <span className="text-xs text-muted">
-          {describeUse(memory.access_count, memory.last_accessed_at, now)}
-        </span>
-      </div>
+                ? "border-aging bg-paper"
+                : `${level.border} ${level.solid}`;
 
-      {result && <ScorePanel score={result.score} now={now} />}
-    </li>
-  );
+    return (
+        <li className="group md:grid md:grid-cols-[7.5rem_1fr] md:gap-x-6">
+            <div className="hidden pt-px text-right md:block">
+                <time dateTime={created.toISOString()} className="block text-sm font-medium">
+                    {formatAge(created, now)}
+                </time>
+                <span className="mt-0.5 block text-xs text-muted">{formatDateTime(created)}</span>
+            </div>
+
+            <div className="relative border-l border-rule pb-10 pl-8 group-last:pb-0">
+                <span
+                    aria-hidden="true"
+                    className={`absolute -left-[7.5px] top-1 h-3.5 w-3.5 rounded-full border-2 ${nodeClass}`}
+                />
+
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className="rounded-full border border-rule px-2.5 py-0.5 text-xs text-muted">
+                        {capitalize(memory.category)}
+                    </span>
+                    <time
+                        dateTime={created.toISOString()}
+                        title={formatDateTime(created)}
+                        className="text-xs text-muted md:hidden"
+                    >
+                        Added {formatAge(created, now)}
+                    </time>
+                </div>
+
+                <p className="mt-2 max-w-[62ch] font-serif text-xl leading-snug">{memory.content}</p>
+
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                    <button
+                        type="button"
+                        className={primaryButton}
+                        onClick={() => onCheck(memory.id)}
+                        disabled={pending !== undefined}
+                        aria-busy={pending === "check"}
+                    >
+                        {pending === "check"
+                            ? "Checking…"
+                            : incomplete
+                                ? "Try again"
+                                : result
+                                    ? "Check again"
+                                    : "Check staleness"}
+                    </button>
+                    <button
+                        type="button"
+                        className={ghostButton}
+                        onClick={() => onMarkUsed(memory.id)}
+                        disabled={pending !== undefined}
+                        aria-busy={pending === "use"}
+                    >
+                        {pending === "use" ? "Saving…" : "Mark as used"}
+                    </button>
+                    <span className="text-xs text-muted">
+                        {describeUse(memory.access_count, memory.last_accessed_at, now)}
+                    </span>
+                </div>
+
+                {result && possiblyOutdated && !incomplete && (
+                    <p className="mt-2 text-xs text-aging">
+                        A newer memory was added since this was checked — the contradiction signal may be outdated.
+                    </p>
+                )}
+
+                {result && <ScorePanel score={result.score} now={now} />}
+            </div>
+        </li>
+    );
 }

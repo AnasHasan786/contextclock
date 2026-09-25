@@ -138,3 +138,11 @@ export function recordMemoryAccess(memoryId: string): Promise<Memory> {
         method: "POST",
     });
 }
+
+export function getScoresForScope(
+    userId: string,
+    agentId: string
+): Promise<Record<string, StalenessScore>> {
+    const params = new URLSearchParams({ user_id: userId, agent_id: agentId });
+    return request<Record<string, StalenessScore>>(`/memories/scores?${params}`);
+}
