@@ -1,26 +1,69 @@
-# Python
+# Python environment and caches
 .venv/
-__pycache__/
-*.pyc
+venv/
+env/
+ENV/
+**/.venv/
+**/__pycache__/
+*.py[cod]
 *.pyo
-.env
-extra.py
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+*.egg-info/
 
-# Node (for later)
+# Environment and secrets
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+frontend/.env.local
+frontend/.env.*
+!frontend/.env.example
+
+# Local databases and generated data
+*.db
+*.sqlite
+*.sqlite3
+contextclock.db
+**/contextclock.db
+
+# Node / frontend artifacts
 node_modules/
 .next/
+out/
+coverage/
 
-# OS
+# OS / editor files
 .DS_Store
-*.db
+Thumbs.db
+.vscode/
+*.swp
+*.swo
+*.tmp
+*.log
 
-# AWS (for later)
+# Security / certificates
 *.pem
+*.key
+*.crt
 
-# stale data
+# Research / evaluation artifacts that are local diagnostics
+extra.py
 data/
+smoke_*.json
+delay_isolation_results.json
+stale_eval_results.json
+stale_eval_results_temp0.json
+smoke_temp0.json
 
-# Diagnostic/investigation scripts (not production code)
+# Diagnostic / one-off scripts not intended for public repo use
 diagnose_*.py
 analyze_*.py
 inspect_schema.py
@@ -28,7 +71,6 @@ measure_instability.py
 category_breakdown.py
 inrun_agreement.py
 
-# Diagnostic output artifacts
-smoke_*.json
-delay_isolation_results.json
-stale_eval_results.json
+# Local tool caches
+.backend/
+.local/
