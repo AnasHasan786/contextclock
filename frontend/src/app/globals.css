@@ -13,8 +13,6 @@
   --ink: #1a2622;
   --muted: #5a6a63;
   --rule: #cbd5ce;
-  --accent: #1e3a5f;
-  --accent-ink: #f4f7fb;
 
   --fresh: #26705f;
   --aging: #8f6208;
@@ -29,8 +27,6 @@
     --ink: #e4ece8;
     --muted: #98a9a2;
     --rule: #2b3d39;
-    --accent: #d3e2f6;
-    --accent-ink: #10202f;
 
     --fresh: #54b89f;
     --aging: #e2ad3f;
@@ -45,8 +41,6 @@
   --color-ink: var(--ink);
   --color-muted: var(--muted);
   --color-rule: var(--rule);
-  --color-accent: var(--accent);
-  --color-accent-ink: var(--accent-ink);
   --color-fresh: var(--fresh);
   --color-aging: var(--aging);
   --color-stale: var(--stale);
@@ -57,7 +51,7 @@
 }
 
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
 
@@ -87,7 +81,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-
   .dial-arc,
   .bar-fill {
     animation: none;
