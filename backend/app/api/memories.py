@@ -3,20 +3,17 @@ import uuid
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from app.models.memory import Memory, MemoryCategory, MemoryWithScore
+from app.models.memory import Memory, MemoryCategory, MemoryWithScore, StalenessScore
 from app.services.memory_store import MemoryStore
 from app.core.scorer import score_memory_full
 from app.services.contradiction_cache import ContradictionCache
 
 router = APIRouter(prefix="/memories", tags=["memories"])
 
-# Single in-memory store shared by every request in this process.
-# Swap for a database-backed store later without changing the routes.
-_store = MemoryStore()
-# Caches Gemini contradiction verdicts per memory pair so repeated scoring
-# (audit jobs, dashboard refreshes) doesn't re-spend the daily quota.
-# Time decay and access anomaly are still recomputed on every request.
-_contradiction_cache = ContradictionCache()
+import os
+_DB_URL = os.getenv("CONTEXTCLOCK_DB_URL", "sqlite:///./contextclock.db")
+_store = MemoryStore(_DB_URL)
+_contradiction_cache = ContradictionCache(_DB_URL)
 
 
 class MemoryCreate(BaseModel):
@@ -52,6 +49,7 @@ def get_memory_score(memory_id: str) -> MemoryWithScore:
 
     existing = _store.list_for_scope(memory.user_id, memory.agent_id)
     score = score_memory_full(memory, existing_memories=existing, detector=_contradiction_cache)
+    _store.save_latest_score(score, memory.user_id, memory.agent_id)
     return MemoryWithScore(memory=memory, score=score)
 
 
@@ -64,3 +62,10 @@ def record_memory_access(memory_id: str) -> Memory:
     if memory is None:
         raise HTTPException(status_code=404, detail="Memory not found.")
     return memory
+
+
+@router.get("/scores", response_model=dict[str, StalenessScore])
+def get_scores_for_scope(user_id: str, agent_id: str) -> dict[str, StalenessScore]:
+    """Last known scores for a scope, straight from storage -- no
+    recomputation, no Gemini calls. What the frontend calls on load."""
+    return _store.get_scores_for_scope(user_id, agent_id)

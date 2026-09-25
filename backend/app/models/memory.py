@@ -56,3 +56,9 @@ class MemoryWithScore(BaseModel):
     """
     memory: Memory
     score: StalenessScore
+
+class LatestScoreRecord(BaseModel):
+    """Wrapper so the bulk endpoint can tell 'never checked' (key absent)
+    apart from 'checked before, might be outdated now' (key present)."""
+    memory: Memory
+    score: StalenessScore
