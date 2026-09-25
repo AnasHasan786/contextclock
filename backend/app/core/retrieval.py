@@ -73,7 +73,9 @@ def find_candidate_memories(
     # Step 2 -- compute semantic similarity for every candidate in scope.
     new_embedding = _embedding_model.encode(new_memory.content, convert_to_tensor=True)
     candidate_texts = [m.content for m in same_scope]
-    candidate_embeddings = _embedding_model.encode(candidate_texts, convert_to_tensor=True)
+    candidate_embeddings = _embedding_model.encode(
+        candidate_texts, convert_to_tensor=True
+    )
 
     similarities = util.cos_sim(new_embedding, candidate_embeddings)[0]
 
@@ -84,7 +86,14 @@ def find_candidate_memories(
         same_category = memory.category == new_memory.category
         boosted = raw_score + (CATEGORY_MATCH_BOOST if same_category else 0.0)
 
-        if boosted >= MIN_SIMILARITY_THRESHOLD:
+        # Same-category candidates always go to the LLM, even below the
+        # similarity floor -- category alone is a strong enough prior that
+        # embedding similarity shouldn't be able to veto a same-slot check
+        # (e.g. "got an offer from Microsoft and accepted" vs "working at
+        # Google" embeds farther apart than the two facts actually are).
+        # Cross-category candidates still need to clear the threshold, or
+        # every unrelated same-scope memory would get sent to Gemini.
+        if same_category or boosted >= MIN_SIMILARITY_THRESHOLD:
             scored.append(
                 RetrievalCandidate(
                     memory=memory,
@@ -93,6 +102,10 @@ def find_candidate_memories(
                     same_category=same_category,
                 )
             )
+
+    # Step 4 -- rank by boosted score, cap at top-K.
+    scored.sort(key=lambda c: c.boosted_score, reverse=True)
+    return scored[:TOP_K_CANDIDATES]
 
     # Step 4 -- rank by boosted score, cap at top-K.
     scored.sort(key=lambda c: c.boosted_score, reverse=True)
