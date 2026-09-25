@@ -93,7 +93,16 @@ def get_anomaly_explanation(
     if created_at.tzinfo is None:
         created_at = created_at.replace(tzinfo=timezone.utc)
 
-    memory_age_days = max(1.0, (now - created_at).total_seconds() / 86400)
+    # Unfloored — for display only. compute_access_anomaly() keeps its own
+    # floor for the score math; this one is purely cosmetic.
+    real_age_days = (now - created_at).total_seconds() / 86400
+
+    if real_age_days < 1 / 24:
+        age_str = "less than an hour old"
+    elif real_age_days < 1:
+        age_str = f"{int(real_age_days * 24)} hours old"
+    else:
+        age_str = f"{int(real_age_days)} days old"
 
     if last_accessed_at is None:
         access_str = "never accessed"
@@ -110,6 +119,6 @@ def get_anomaly_explanation(
 
     return (
         f"Memory accessed {access_count} time(s), {access_str}. "
-        f"Memory is {int(memory_age_days)} days old. "
+        f"Memory is {age_str}. "
         f"Access anomaly score: {score:.2f}."
     )
