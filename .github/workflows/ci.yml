@@ -11,6 +11,8 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    env:
+      GEMINI_API_KEY: ci-placeholder-not-a-real-key
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
