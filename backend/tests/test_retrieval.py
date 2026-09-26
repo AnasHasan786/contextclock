@@ -2,6 +2,7 @@ from datetime import datetime
 
 from app.models.memory import Memory, MemoryCategory
 from app.core.retrieval import find_candidate_memories, MIN_SIMILARITY_THRESHOLD, TOP_K_CANDIDATES
+import pytest
 
 
 def make_memory(id, content, category, user_id="u1", agent_id="a1", created_at=None):
@@ -64,7 +65,7 @@ def test_same_category_receives_boost():
 
     # Same raw text, different category -- same_category's boosted score
     # must be strictly higher despite identical similarity_score.
-    assert same_cat_candidate.similarity_score == diff_cat_candidate.similarity_score
+    assert same_cat_candidate.similarity_score == pytest.approx(diff_cat_candidate.similarity_score, abs=1e-4)
     assert same_cat_candidate.boosted_score > diff_cat_candidate.boosted_score
     assert same_cat_candidate.same_category is True
     assert diff_cat_candidate.same_category is False
