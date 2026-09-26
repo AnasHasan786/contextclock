@@ -2,6 +2,13 @@
 
 ContextClock is a local prototype for detecting when an AI agent's stored memories have fallen out of date. The system combines time-based decay, access-pattern anomalies, and Gemini-based contradiction checks to assign a staleness score to each memory.
 
+## Live demo
+
+- Frontend: https://contextclock.vercel.app
+- Backend API: https://contextclock.onrender.com (interactive docs at `/docs`)
+
+Both run on free-tier hosting. The backend sleeps after ~15 minutes of inactivity — the first request afterward can take 30–60 seconds while it wakes up. This is expected, not a bug.
+
 ## Problem it solves
 
 AI agents often accumulate long-lived memory entries that were valid at the time they were written but later became outdated. This project is designed to help answer a simple question: which memories should an agent treat as stale, aging, or expired?
@@ -127,7 +134,7 @@ The project expects environment variables from a local `.env` file or a shell en
 
 ### Frontend
 
-- `NEXT_PUBLIC_API_URL`: base URL for the backend, usually `http://localhost:8000`
+- `NEXT_PUBLIC_API_URL`: base URL for the backend. Locally, `http://localhost:8000`; in the deployed Vercel project this is set to `https://contextclock.onrender.com`
 
 Use the repository template at [.env.example](.env.example) as the source for local values.
 
@@ -295,9 +302,10 @@ The project currently uses SQLite by default.
 
 - the app is a local prototype, not a hardened production service
 - there is no authentication or authorization layer
-- the backend does not yet provide deployment configuration for a cloud environment
 - the contradiction detector depends on a live Gemini API key and quota availability
 - the evaluation pipeline is designed for research benchmarking, not for a real-time production system
+- `POST /memories` is unauthenticated; anyone with the URL can create memories and trigger a Gemini API call. Acceptable for a portfolio demo, not for a real deployment
+- the deployed backend uses SQLite on Render's free tier, which has ephemeral disk — data can reset on redeploy or restart
 
 ## Future work
 
@@ -307,7 +315,7 @@ Potential next steps include:
 - adding cloud-friendly database configuration
 - expanding the benchmark and comparison suite
 - improving the UI for score history and trend analysis
-- packaging the backend for deployment or Docker-based local runs
+- containerizing the backend for easier reproducibility (it's already deployed; Docker would help local setup and future migration to a paid host)
 
 ## Contributing
 
@@ -319,8 +327,8 @@ Do not commit local `.env` files, API keys, or database state. See [SECURITY.md]
 
 ## License
 
-This repository does not currently include a license file. A license should be selected before a public release, and the recommended default for a repository like this is MIT if the project owner wants a permissive OSS license.
+This project is licensed under the MIT License — see [LICENSE](LICENSE) for details.
 
 ## Repository readiness status
 
-This project is documented and reproducible locally, but it is still best described as a research-oriented prototype rather than a production deployment.
+This project is documented, reproducible locally, and deployed live (see Live demo above) for demonstration purposes. It remains a research-oriented prototype architecturally — no auth layer, no multi-user database — rather than a hardened production service.
